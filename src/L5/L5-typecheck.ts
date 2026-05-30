@@ -1,6 +1,6 @@
 // L5-typecheck
 // ========================================================
-import { equals, map, zipWith } from 'ramda';
+import { equals, is, map, zipWith } from 'ramda';
 import { isAppExp, isBoolExp, isCExp, isDefineExp, isIfExp, isLetrecExp, isLetExp, isNumExp,
          isPrimOp, isProcExp, isProgram, isStrExp, isVarRef, parseL5, parseL5Exp, unparse,
          AppExp, BoolExp, DefineExp, Exp, IfExp, LetrecExp, LetExp, NumExp,
@@ -218,11 +218,25 @@ export const typeofLetrec = (exp: LetrecExp, tenv: TEnv): Result<TExp> => {
 //   If typeof(exp.val, tenv) = texp
 //   Then typeof(exp) = void
 export const typeofDefine = (exp: DefineExp, tenv: TEnv): Result<VoidTExp> =>
-    makeFailure("HW3 2.1 - Implement this function");
+      bind(typeofExp(exp.val, tenv), (valType: TExp) =>
+        bind(checkEqualType(valType, exp.var.texp, exp), (_) =>
+            makeOk(makeVoidTExp())));
 
 // Purpose: compute the type of a program
 // Thread the TEnv through top-level expressions. A define extends the TEnv
 // for the expressions that follow it; the program type is the type of the
 // last expression.
 export const typeofProgram = (exp: Program, tenv: TEnv): Result<TExp> =>
-    makeFailure("HW3 2.2 - Implement this function");
+    typeofProgramExps(exp.exps, tenv);
+
+const typeofProgramExps = (exps: Exp[], tenv: TEnv): Result<TExp> =>
+    exps.length === 0 ? makeFailure("Empty program") :
+    exps.slice(1).length === 0 ? typeofExp(exps[0], tenv) :
+    isDefineExp(exps[0])
+        ? bind(typeofDefine(exps[0] as DefineExp, tenv), (_) =>
+            typeofProgramExps(exps.slice(1),
+            makeExtendTEnv([(exps[0] as DefineExp).var.var], [(exps[0] as DefineExp).var.texp], tenv)))
+        : bind(typeofExp(exps[0], tenv), (_) =>
+            typeofProgramExps(exps.slice(1), tenv));
+
+
