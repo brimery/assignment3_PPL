@@ -103,9 +103,10 @@ export const typeofPrim = (p: PrimOp): Result<TExp> =>
     (p.op === 'string=?') ? makeOk(makeProcTExp([makeStrTExp(), makeStrTExp()] , makeBoolTExp())) :
     (p.op === 'display') ? makeOk(makeProcTExp([T()] , makeVoidTExp())) :
     (p.op === 'newline') ? makeOk(makeProcTExp([] , makeVoidTExp())) :
-    (p.op === 'cons') ? makeOk(makeProcTExp([T(), makeListTExp(T())], makeListTExp(T()))) :
-    (p.op === 'car') ?  makeOk(makeProcTExp([makeListTExp(T())], T())) :
-    (p.op === 'cdr') ?  makeOk(makeProcTExp([makeListTExp(T())], makeListTExp(T()))) :
+    (p.op === 'cons') ? (() => { const t = T(); return makeOk(makeProcTExp([t, makeListTExp(t)], makeListTExp(t))); })() :
+    (p.op === 'car') ?  (() => { const t = T(); return makeOk(makeProcTExp([makeListTExp(t)], t)); })() :
+    (p.op === 'cdr') ?  (() => { const t = T(); return makeOk(makeProcTExp([makeListTExp(t)], makeListTExp(t))); })() :
+
 
     makeFailure(`Primitive not yet implemented: ${p.op}`);
 
