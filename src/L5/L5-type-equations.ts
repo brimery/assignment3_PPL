@@ -80,7 +80,10 @@ export const expToPool = (exp: A.Exp): Pool => {
                 A.isLitExp(e) && V.isEmptySExp(e.val) ?
                     extendPool(e, pool) :
                     A.isLitExp(e) && V.isCompoundSExp(e.val) ?
-                        extendPool(e, pool) :
+                        extendPool(e, reducePool(findVars,
+                            [A.makeLitExp((e.val as V.CompoundSExp).val1),
+                             A.makeLitExp((e.val as V.CompoundSExp).val2)],
+                            pool)) :
                         A.isCompoundExp(e) ? extendPool(e, reducePool(findVars, A.expComponents(e), pool)) :
                             makeEmptyPool();
     return findVars(exp, makeEmptyPool());
@@ -142,13 +145,19 @@ export const makeEquationsFromExp = (exp: A.Exp, pool: Pool): Opt.Optional<Equat
                     Opt.mapv(inPool(pool, exp), (left: T.TExp) =>
                         [makeEquation(left, T.makeListTExp(T.makeFreshTVar()))]) :
                     V.isCompoundSExp(exp.val) ?
-                        Opt.mapv(inPool(pool, exp), (left: T.TExp) => {
+                        Opt.bind(inPool(pool, exp), (left: T.TExp) => {
                             const compound = exp.val as V.CompoundSExp;
-                            const itemType = isNumber(compound.val1) ? T.makeNumTExp() :
-                                isBoolean(compound.val1) ? T.makeBoolTExp() :
-                                    isString(compound.val1) ? T.makeStrTExp() :
-                                        T.makeFreshTVar();
-                            return [makeEquation(left, T.makeListTExp(itemType))];
+                            const headExp = A.makeLitExp(compound.val1);
+                            const tailExp = A.makeLitExp(compound.val2);
+                            return Opt.bind(inPool(pool, headExp), (headTE: T.TExp) =>
+                                Opt.mapv(inPool(pool, tailExp), (tailTE: T.TExp) => {
+                                    const itemType = T.makeFreshTVar();
+                                    return [
+                                        makeEquation(left, T.makeListTExp(itemType)),
+                                        makeEquation(headTE, itemType),
+                                        makeEquation(tailTE, T.makeListTExp(itemType))
+                                    ];
+                                }));
                         }) :
 
                         isNumber(exp.val) ? Opt.mapv(inPool(pool, exp), (left: T.TExp) =>
